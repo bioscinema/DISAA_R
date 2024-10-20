@@ -2,10 +2,15 @@ library(nloptr)
 library(Matrix)
 library(MASS)
 
-MZINB = function(counts, X, max_iter = 100){
+MZINB = function(counts, covariates, max_iter = 100){
   
   ### Initialization
-  data = counts
+  data = as.matrix(counts)
+  row.names(data) = NULL
+  colnames(data) = NULL
+  X = covariates
+  row.names(X) = NULL
+  colnames(X) = NULL
   n = dim(data)[1]
   m = dim(data)[2]
   p = dim(X)[2]
@@ -43,7 +48,7 @@ MZINB = function(counts, X, max_iter = 100){
         return(-sum((1 - tau[, j] * v[, j]) * theta_j * log(theta_j) - ((1 - tau[, j] * v[, j]) * theta_j + data[, j]) * log(mu_j + theta_j) +  data[, j] * log(mu_j) + lgamma(data[, j] + theta_j) - lgamma(theta_j)))
       }
       
-      res = nloptr(x0 = par_j, eval_f = lj, lb = c(0, rep(-10, p)), ub = rep(10, p + 1),
+      res = nloptr(x0 = as.numeric(par_j), eval_f = lj, lb = c(0, rep(-10, p)), ub = rep(10, p + 1),
                    opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-6))
       
       theta[j] = res$solution[1]
@@ -65,7 +70,7 @@ MZINB = function(counts, X, max_iter = 100){
         return(-sum(-((1 - tau[i, ] * v[i, ]) * theta + data[i, ]) * log(mu_i + theta) + data[i, ] * log(mu_i)))
       }
       
-      res = nloptr(x0 = eta[i], eval_f = li, lb = c(-10), ub = c(10),
+      res = nloptr(x0 = as.numeric(eta[i]), eval_f = li, lb = c(-10), ub = c(10),
                    opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-6))
       
       eta[i] = res$solution[1]
@@ -128,8 +133,6 @@ MZINB = function(counts, X, max_iter = 100){
   return(list(pi = pi, theta = theta, eta = eta, beta = beta, mu = mu, pvalues = pvalues))
   
 }
-
-
   
 
 N = 100 # number of samples
