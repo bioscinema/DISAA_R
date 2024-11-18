@@ -2,7 +2,8 @@ library(nloptr)
 library(Matrix)
 library(MASS)
 
-MZINB = function(counts, covariates, max_iter = 100){
+MZINB = function(counts, covariates, lambda = 2,
+                 beta_bound = c(-10, 10), theta_bound = c(1e-2, 10), eta_bound = 10, max_iter = 100){
   
   ### Initialization
   data = as.matrix(counts)
@@ -15,7 +16,9 @@ MZINB = function(counts, covariates, max_iter = 100){
   m = dim(data)[2]
   p = dim(X)[2]
   pi = rep(0.5, m)
-  eta = apply(data, 1, median)
+  eta = apply(data, 1, function(x) median(log(x[x != 0])))
+  eta = ifelse(is.na(eta), 0, eta)
+  eta_bound = max(max(eta), eta_bound)
   beta = matrix(1, m, p)
   mu = matrix(0, n, m)
   theta = rep(1, m)
@@ -45,10 +48,10 @@ MZINB = function(counts, covariates, max_iter = 100){
         beta_j = par_j[2:length(par_j)]
         mu_j = exp(eta + X %*% as.matrix(beta_j))
         
-        return(-sum((1 - tau[, j] * v[, j]) * theta_j * log(theta_j) - ((1 - tau[, j] * v[, j]) * theta_j + data[, j]) * log(mu_j + theta_j) +  data[, j] * log(mu_j) + lgamma(data[, j] + theta_j) - lgamma(theta_j)))
+        return(lambda / theta_j^2 -sum((1 - tau[, j] * v[, j]) * theta_j * log(theta_j) - ((1 - tau[, j] * v[, j]) * theta_j + data[, j]) * log(mu_j + theta_j) +  data[, j] * log(mu_j) + lgamma(data[, j] + theta_j) - lgamma(theta_j)))
       }
       
-      res = nloptr(x0 = as.numeric(par_j), eval_f = lj, lb = c(0, rep(-10, p)), ub = rep(10, p + 1),
+      res = nloptr(x0 = as.numeric(par_j), eval_f = lj, lb = c(theta_bound[1], rep(beta_bound[1], p)), ub = c(theta_bound[2], rep(beta_bound[2], p)),
                    opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-6))
       
       theta[j] = res$solution[1]
@@ -70,7 +73,7 @@ MZINB = function(counts, covariates, max_iter = 100){
         return(-sum(-((1 - tau[i, ] * v[i, ]) * theta + data[i, ]) * log(mu_i + theta) + data[i, ] * log(mu_i)))
       }
       
-      res = nloptr(x0 = as.numeric(eta[i]), eval_f = li, lb = c(-10), ub = c(10),
+      res = nloptr(x0 = as.numeric(eta[i]), eval_f = li, lb = c(-10), ub = c(eta_bound),
                    opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-6))
       
       eta[i] = res$solution[1]
@@ -129,6 +132,7 @@ MZINB = function(counts, covariates, max_iter = 100){
   for(j in 1:m){
     pvalues = c(pvalues, 1 - pchisq(beta[j, 2] ^ 2 / cov_beta[2*j, 2*j], 1))
   }
+  pvalues = stats::p.adjust(pvalues, "BH")
   
   return(list(pi = pi, theta = theta, eta = eta, beta = beta, mu = mu, pvalues = pvalues))
   
