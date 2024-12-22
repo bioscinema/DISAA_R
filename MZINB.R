@@ -2,7 +2,7 @@ library(nloptr)
 library(Matrix)
 library(MASS)
 
-MZINB = function(counts, covariates, lambda = 2,
+MZINB = function(counts, covariates, lambda = 0.5,
                  beta_bound = c(-10, 10), theta_bound = c(1e-2, 10), eta_bound = 10, max_iter = 100){
   
   ### Initialization
@@ -114,7 +114,7 @@ MZINB = function(counts, covariates, lambda = 2,
       I_eta_beta[i, ((j-1)*p+1):(j*p)] =  ((data[i, j] + (1 - tau[i, j] * v[i, j]) * theta[j]) * mu[i, j] * theta[j] / (mu[i, j] + theta[j]) ^ 2) * X[i, ]
       I_theta_eta[j, i] = ((1 - tau[i, j] * v[i, j]) * mu[i, j] - data[i, j]) * mu[i, j] / (mu[i, j] + theta[j]) ^ 2
     }
-    I_theta = c(I_theta, new_I_theta)
+    I_theta = c(I_theta, new_I_theta - 6 * lambda / theta[j]^4)
     I_beta = as.matrix(bdiag(I_beta, new_I_beta))
     I_theta_beta[j, ((j-1)*p+1):(j*p)] = new_I_theta_beta
   }
@@ -137,28 +137,25 @@ MZINB = function(counts, covariates, lambda = 2,
   return(list(pi = pi, theta = theta, eta = eta, beta = beta, mu = mu, pvalues = pvalues))
   
 }
-  
+
 
 N = 100 # number of samples
 M = 200 # number of genes
 
-pi = 0.6
-theta = 0.5
+pi = 0.5
+theta = 1
 pi_real = rep(pi, M)
 theta_real = rep(theta, M)
-  
+
 ### Generate eta
 eta_real = runif(N, min = -3, max = 3)
 
-### Generate beta  
-values = c(1, 0, -1)
-probs =  c(0.4, 0.4, 0.2)
-beta1 = sample(values, size = M, replace = TRUE, prob = probs)
-beta_real = cbind(rep(1, M), beta1)
+### Generate beta, 30% significant
+beta_real = cbind(rep(1, M), rbinom(N, 2, 0.3))
 
 ### Generate X
 X = cbind(rep(1, N), rbinom(N, 1, 0.5)) 
-  
+
 ### Generate zero-inflated negative binomial
 counts = matrix(0, N, M)
 mu = matrix(0, N, M)
@@ -169,9 +166,11 @@ for(i in 1:N){
     if(runif(1) <= 1 - pi_real[j]) counts[i, j] = rnbinom(1, mu = mu_ij, size = theta_real[j])
   }
 }
-  
 
-out = MZINB(counts, X, max_iter = 5)
+### Fit
+out = MZINB(counts, X, lambda = 0.1, max_iter = 30)
 
+### Results
 mean(out$pi)
 mean(out$theta)
+mean(out$pvalues < 0.05)
