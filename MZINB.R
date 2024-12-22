@@ -168,7 +168,7 @@ for(i in 1:N){
 }
 
 ### Fit
-out = MZINB(counts, X, lambda = 0.1, max_iter = 30)
+out = MZINB(counts, X, max_iter = 30)
 
 ### Results
 mean(out$pi)
