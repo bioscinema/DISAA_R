@@ -167,6 +167,9 @@ for(i in 1:N){
   }
 }
 
+### Test split function
+out <- disaa(counts = counts, X, max_iter = 10)
+
 ### Fit
 out = MZINB(counts, X, max_iter = 30)
 

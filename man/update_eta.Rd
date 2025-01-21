@@ -2,16 +2,27 @@
 % Please edit documentation in R/update_eta.R
 \name{update_eta}
 \alias{update_eta}
-\title{Update Eta for MZINB Model}
+\title{Update Eta Values for Each Sample}
 \usage{
 update_eta(params)
 }
 \arguments{
-\item{params}{A list containing current estimates of model parameters.}
+\item{params}{A list containing:
+\itemize{
+\item \code{data}: A matrix of count data (n x m) where rows represent samples and columns represent features.
+\item \code{X}: A matrix of covariates (n x p).
+\item \code{beta}: A matrix of regression coefficients (m x p).
+\item \code{theta}: A vector of dispersion parameters (m).
+\item \code{tau}: A matrix of posterior probabilities for zero inflation (n x m).
+\item \code{v}: A binary matrix indicating zero counts (n x m).
+\item \code{eta}: A vector of current \code{eta} values (n).
+\item \code{eta_bound}: The upper bound for \code{eta} during optimization.
+}}
 }
 \value{
-A list containing updated values for \code{eta}.
+A numeric vector of updated \code{eta} values for each sample.
 }
 \description{
-This function updates the \code{eta} parameter for each observation during the M-step of the MZINB model.
+The \code{update_eta} function optimizes the sample-specific \code{eta} parameter using the \code{optim()} function from the \code{stats} package.
+This parameter represents the logarithm of the mean of non-zero counts, adjusted for covariates.
 }

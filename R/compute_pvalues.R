@@ -1,20 +1,23 @@
-#' Compute P-Values for Covariate Effects
+#' Compute P-Values for Beta Coefficients
 #'
-#' The `compute_pvalues` function calculates p-values to assess the significance of covariate effects (`beta`)
-#' in the MZINB model using a chi-squared test.
+#' The `compute_pvalues` function computes the p-values for the `beta` coefficients using the Fisher Information Matrix.
+#'
+#' @import Rcpp
+#' @import RcppArmadillo
+#' @import MASS
+#' @import Matrix
+#' @useDynLib DISAA, .registration = TRUE
 #'
 #' @param data A numeric matrix (n x m) of observed count data.
 #' @param beta A numeric matrix (m x p) of covariate effects for each feature.
-#' @param theta A numeric vector (m) of dispersion parameters for each feature.
-#' @param mu A numeric matrix (n x m) of mean estimates for the count data.
+#' @param theta A numeric vector (length m) of dispersion parameters for each feature.
+#' @param mu A numeric matrix (n x m) of computed mean values for the count data.
 #' @param tau A numeric matrix (n x m) of posterior probabilities for zero inflation.
 #' @param v A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).
 #' @param lambda A regularization parameter for controlling model complexity.
 #'
-#' @return A numeric vector of adjusted p-values for the significance of covariate effects.
-#' @examples
-#' # Example usage:
-#' # pvalues <- compute_pvalues(data, beta, theta, mu, tau, v, lambda)
+#' @return A numeric vector of adjusted p-values for the `beta` coefficients.
+#'
 #' @export
 compute_pvalues <- function(data, beta, theta, mu, tau, v, lambda) {
   m <- ncol(data)  # Number of features

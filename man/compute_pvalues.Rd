@@ -2,17 +2,28 @@
 % Please edit documentation in R/compute_pvalues.R
 \name{compute_pvalues}
 \alias{compute_pvalues}
-\title{Compute P-values for MZINB Model}
+\title{Compute P-Values for Beta Coefficients}
 \usage{
-compute_pvalues(params)
+compute_pvalues(data, beta, theta, mu, tau, v, lambda)
 }
 \arguments{
-\item{params}{A list containing final estimates of model parameters.}
+\item{data}{A numeric matrix (n x m) of observed count data.}
+
+\item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
+
+\item{theta}{A numeric vector (length m) of dispersion parameters for each feature.}
+
+\item{mu}{A numeric matrix (n x m) of computed mean values for the count data.}
+
+\item{tau}{A numeric matrix (n x m) of posterior probabilities for zero inflation.}
+
+\item{v}{A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).}
+
+\item{lambda}{A regularization parameter for controlling model complexity.}
 }
 \value{
-A list containing the computed p-values for each feature.
+A numeric vector of adjusted p-values for the \code{beta} coefficients.
 }
 \description{
-This function calculates the p-values for the regression coefficients \code{beta} in the MZINB model
-based on the computed Fisher information matrix.
+The \code{compute_pvalues} function computes the p-values for the \code{beta} coefficients using the Fisher Information Matrix.
 }

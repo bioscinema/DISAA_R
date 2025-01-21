@@ -1,51 +1,37 @@
 #' DISAA: MZINB Model for Analyzing Count Data
 #'
-#' The `disaa` function implements the Multivariate Zero-Inflated Negative Binomial (MZINB) model for analyzing count data,
-#' particularly useful for datasets with a high prevalence of zero counts.
-#' It leverages the Expectation-Maximization (EM) algorithm to iteratively optimize parameters, providing a flexible
-#' and robust framework for modeling count data with covariates.
+#' The `disaa` function implements the Multivariate Zero-Inflated Negative Binomial (MZINB) model for analyzing high-dimensional count data.
+#' It uses the Expectation-Maximization (EM) algorithm to iteratively optimize model parameters, allowing the analysis of datasets with a high prevalence of zero counts.
 #'
-#' @param counts A numeric matrix (n x m) of count data, where rows represent samples and columns represent features.
-#'               It is expected to contain non-negative integers.
+#' @param counts A numeric matrix (n x m) of count data, where rows represent samples and columns represent features. The matrix is expected to contain non-negative integers.
 #' @param covariates A numeric matrix (n x p) of covariates for the samples, where rows correspond to samples and columns correspond to covariates.
-#' @param lambda A regularization parameter for controlling model complexity. Default is 0.5.
-#' @param beta_bound A numeric vector specifying the lower and upper bounds for the `beta` parameter. Default is `c(-10, 10)`.
-#' @param theta_bound A numeric vector specifying the lower and upper bounds for the `theta` parameter. Default is `c(1e-2, 10)`.
-#' @param eta_bound A numeric value specifying the upper bound for the `eta` parameter. Default is `10`.
-#' @param max_iter An integer specifying the maximum number of iterations for the EM algorithm. Default is `100`.
+#' @param lambda A regularization parameter for controlling model complexity. The default value is 0.5.
+#' @param beta_bound A numeric vector specifying the lower and upper bounds for the `beta` parameter. The default is `c(-10, 10)`.
+#' @param theta_bound A numeric vector specifying the lower and upper bounds for the `theta` parameter. The default is `c(1e-2, 10)`.
+#' @param eta_bound A numeric value specifying the upper bound for the `eta` parameter. The default is 10.
+#' @param max_iter An integer specifying the maximum number of iterations for the EM algorithm. The default is 100.
 #'
 #' @return A list containing the following elements:
-#' \item{pi}{A numeric vector of estimated zero-inflation probabilities for each feature.}
-#' \item{theta}{A numeric vector of estimated dispersion parameters for each feature.}
-#' \item{eta}{A numeric vector of sample-specific offsets.}
-#' \item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
-#' \item{mu}{A numeric matrix (n x m) of estimated mean values for the count data.}
-#' \item{pvalues}{A numeric vector of adjusted p-values for the significance of covariate effects.}
-#'
-#' @examples
-#' # Example usage:
-#' # Assuming `counts` is an n x m count matrix and `covariates` is an n x p covariate matrix
-#' # result <- disaa(counts, covariates)
+#' \describe{
+#'   \item{pi}{A numeric vector of estimated zero-inflation probabilities for each feature.}
+#'   \item{theta}{A numeric vector of estimated dispersion parameters for each feature.}
+#'   \item{eta}{A numeric vector of sample-specific offsets.}
+#'   \item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
+#'   \item{mu}{A numeric matrix (n x m) of estimated mean values for the count data.}
+#'   \item{pvalues}{A numeric vector of adjusted p-values for the significance of covariate effects.}
+#' }
 #'
 #' @details
-#' The MZINB model assumes that the observed counts are generated from a mixture of zero-inflated and Negative Binomial (NB) components.
-#' The model is suitable for analyzing high-dimensional count data with covariates, such as those from microbiome or RNA-seq studies.
+#' The `disaa` function iteratively updates the model parameters using the Expectation-Maximization (EM) algorithm:
+#' \itemize{
+#'   \item **E-Step**: Computes the expected values of the latent variables based on current parameter estimates.
+#'   \item **M-Step**: Updates the model parameters to maximize the likelihood of the observed data.
+#' }
+#' The model is suitable for analyzing count data with covariates, such as those from microbiome or RNA-seq studies, which often have a high proportion of zero counts.
 #'
 #' @export
 
-#' Main MZINB Function
-#'
-#' This function performs the MZINB analysis using an Expectation-Maximization algorithm.
-#'
-#' @param counts A matrix of count data (n x m).
-#' @param covariates A matrix of covariates for the samples (n x p).
-#' @param lambda Regularization parameter for the model.
-#' @param beta_bound Bounds for the `beta` parameter.
-#' @param theta_bound Bounds for the `theta` parameter.
-#' @param eta_bound Bound for the `eta` parameter.
-#' @param max_iter The maximum number of iterations for the EM algorithm.
-#' @return A list containing optimized values for `pi`, `theta`, `eta`, `beta`, `mu`, and computed p-values.
-#' @export
+
 disaa <- function(counts, covariates, lambda = 0.5, beta_bound = c(-10, 10), theta_bound = c(1e-2, 10), eta_bound = 10, max_iter = 100) {
   params <- initialize_mzinb(counts, covariates, lambda, beta_bound, theta_bound, eta_bound)
 

@@ -1,98 +1,71 @@
 #include <RcppArmadillo.h>
-// [[Rcpp::depends(RcppArmadillo)]]
+#include <cmath> // For math functions like pow and log
 
 using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List compute_pvalues_cpp(List params) {
-  // Extract values from params list
-  int n = params["n"];
-  int m = params["m"];
-  int p = params["p"];
-  arma::mat X = as<arma::mat>(params["X"]);
-  arma::mat beta = as<arma::mat>(params["beta"]);
-  arma::vec theta = as<arma::vec>(params["theta"]);
-  arma::mat tau = as<arma::mat>(params["tau"]);
-  arma::mat v = as<arma::mat>(params["v"]);
-  arma::mat data = as<arma::mat>(params["data"]);
-  arma::mat mu = as<arma::mat>(params["mu"]);
+arma::vec compute_pvalues(const arma::mat& data,
+                          const arma::mat& beta,
+                          const arma::vec& theta,
+                          const arma::mat& mu,
+                          const arma::mat& tau,
+                          const arma::mat& v,
+                          double lambda) {
+  int m = data.n_cols;  // Number of features
+  int p = beta.n_cols;  // Number of covariates
 
-  // Initializing Fisher information elements
+  // Initialize structures for Fisher Information Matrix components
+  arma::sp_mat I_beta(p * m, p * m);  // Sparse matrix for I_beta
   arma::vec I_theta(m, fill::zeros);
-  arma::vec I_eta(n, fill::zeros);
-  arma::mat I_theta_eta(m, n, fill::zeros);
-  arma::mat I_theta_beta(m, m * p, fill::zeros);
-  arma::mat I_eta_beta(n, m * p, fill::zeros);
-  arma::mat I_beta = arma::zeros<arma::mat>(m * p, m * p);
+  arma::mat I_theta_beta(m, p * m, fill::zeros);
 
-  // Compute the Fisher information elements
-  for (int i = 0; i < n; ++i) {
-    double new_I_eta = 0.0;
-
-    for (int j = 0; j < m; ++j) {
-      double mu_ij = mu(i, j);
-      double theta_j = theta[j];
-      double data_ij = data(i, j);
-      double tau_v = (1.0 - tau(i, j) * v(i, j));
-
-      new_I_eta += (data_ij + tau_v * theta_j) * mu_ij * theta_j / std::pow(mu_ij + theta_j, 2);
-    }
-
-    I_eta[i] = new_I_eta;
-  }
-
+  // Compute Fisher Information Matrix components
   for (int j = 0; j < m; ++j) {
-    double new_I_theta = 0.0;
-    arma::mat new_I_beta = arma::zeros<arma::mat>(p, p);
-    arma::vec new_I_theta_beta = arma::zeros<arma::vec>(p);
+    arma::mat I_beta_j(p, p, fill::zeros);
+    double I_theta_j = 0.0;
+    arma::vec I_theta_beta_j(p, fill::zeros);
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < data.n_rows; ++i) {
       double mu_ij = mu(i, j);
       double theta_j = theta[j];
-      double data_ij = data(i, j);
-      double tau_v = (1.0 - tau(i, j) * v(i, j));
-      double denom = std::pow(mu_ij + theta_j, 2);
+      double tau_ij = tau(i, j);
+      double v_ij = v(i, j);
+      arma::rowvec x_i = beta.row(j);
 
-      new_I_theta += (data_ij * theta_j + tau_v * mu_ij * mu_ij) / (theta_j * denom) +
-        R::trigamma(data_ij + theta_j) - R::trigamma(theta_j);
-
-      new_I_beta += (data_ij + tau_v * theta_j) * mu_ij * theta_j / denom * X.row(i).t() * X.row(i);
-
-      new_I_theta_beta += ((tau_v * mu_ij - data_ij) * mu_ij / denom) * X.row(i).t();
-
-      I_eta_beta(i, span(j * p, (j + 1) * p - 1)) = ((data_ij + tau_v * theta_j) * mu_ij * theta_j / denom) * X.row(i).t();
-      I_theta_eta(j, i) = ((tau_v * mu_ij - data_ij) * mu_ij / denom);
+      // Update Fisher Information components
+      I_beta_j += ((data(i, j) + (1 - tau_ij * v_ij) * theta_j) * mu_ij * theta_j / std::pow(mu_ij + theta_j, 2)) * (x_i.t() * x_i);
+      I_theta_j += (data(i, j) * theta_j + (1 - tau_ij * v_ij) * std::pow(mu_ij, 2)) / (theta_j * std::pow(mu_ij + theta_j, 2));
+      I_theta_beta_j += (((1 - tau_ij * v_ij) * mu_ij - data(i, j)) * mu_ij / std::pow(mu_ij + theta_j, 2)) * x_i.t();
     }
 
-    I_theta[j] = new_I_theta;
-    I_beta.submat(j * p, j * p, (j + 1) * p - 1, (j + 1) * p - 1) = new_I_beta;
-    I_theta_beta(j, span(j * p, (j + 1) * p - 1)) = new_I_theta_beta.t();
+    I_theta[j] = I_theta_j - 6 * lambda / std::pow(theta[j], 4);
+    I_beta.submat(j * p, j * p, (j + 1) * p - 1, (j + 1) * p - 1) = I_beta_j;
+    I_theta_beta.submat(j, j * p, j, (j + 1) * p - 1) = I_theta_beta_j.t();
   }
 
-  // Construct Fisher Information matrix
-  arma::mat I_theta_diag = diagmat(I_theta);
-  arma::mat I_eta_diag = diagmat(I_eta);
+  // Assemble the Fisher Information Matrix
+  arma::mat I_theta_diag = arma::diagmat(I_theta);
+  arma::mat I_upper = join_horiz(I_theta_diag, I_theta_beta);
+  arma::mat I_lower = join_horiz(I_theta_beta.t(), arma::mat(I_beta));  // Convert sparse matrix to dense
+  arma::mat I = join_vert(I_upper, I_lower);
 
-  arma::mat I_top = join_horiz(join_horiz(I_theta_diag, I_theta_eta), I_theta_beta);
-  arma::mat I_mid = join_horiz(join_horiz(I_theta_eta.t(), I_eta_diag), I_eta_beta);
-  arma::mat I_bot = join_horiz(join_horiz(I_theta_beta.t(), I_eta_beta.t()), I_beta);
+  // Invert the Fisher Information Matrix to get the covariance matrix
+  arma::mat cov = pinv(I);
 
-  arma::mat I = join_vert(join_vert(I_top, I_mid), I_bot);
+  // Extract covariance of beta coefficients
+  arma::mat cov_beta = cov.submat(m, m, cov.n_rows - 1, cov.n_cols - 1);
 
-  // Calculate the covariance matrix
-  arma::mat cov = pinv(I); // Using pseudo-inverse for numerical stability
-  arma::mat cov_beta = cov.submat((cov.n_rows - m * p), (cov.n_cols - m * p), cov.n_rows - 1, cov.n_cols - 1);
-
-  // Compute p-values
+  // Compute p-values for each beta coefficient
   arma::vec pvalues(m, fill::zeros);
   for (int j = 0; j < m; ++j) {
-    pvalues[j] = 1.0 - R::pchisq(std::pow(beta(j, 1), 2) / cov_beta(2 * j, 2 * j), 1, 1, 0);
+    double stat = std::pow(beta(j, 1), 2) / cov_beta(2 * j, 2 * j);  // Beta[j, 2]^2
+    pvalues[j] = 1 - R::pchisq(stat, 1, 1, 0);
   }
 
-  // Update params with p-values
-  params["pvalues"] = pvalues;
+  // Adjust p-values for multiple testing using BH method
+  Function p_adjust("p.adjust");
+  pvalues = as<arma::vec>(p_adjust(Named("p", pvalues), Named("method", "BH")));
 
-  return params;
+  return pvalues;
 }
-

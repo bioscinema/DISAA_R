@@ -4,25 +4,51 @@
 \alias{disaa}
 \title{DISAA: MZINB Model for Analyzing Count Data}
 \usage{
-disaa(counts, covariates, max_iter = 100)
+disaa(
+  counts,
+  covariates,
+  lambda = 0.5,
+  beta_bound = c(-10, 10),
+  theta_bound = c(0.01, 10),
+  eta_bound = 10,
+  max_iter = 100
+)
 }
 \arguments{
-\item{counts}{A matrix of count data (n x m) with rows representing samples and columns representing features.}
+\item{counts}{A numeric matrix (n x m) of count data, where rows represent samples and columns represent features. The matrix is expected to contain non-negative integers.}
 
-\item{covariates}{A matrix of covariates for the samples (n x p).}
+\item{covariates}{A numeric matrix (n x p) of covariates for the samples, where rows correspond to samples and columns correspond to covariates.}
 
-\item{max_iter}{The maximum number of iterations for the EM algorithm (default is 100).}
+\item{lambda}{A regularization parameter for controlling model complexity. The default value is 0.5.}
+
+\item{beta_bound}{A numeric vector specifying the lower and upper bounds for the \code{beta} parameter. The default is \code{c(-10, 10)}.}
+
+\item{theta_bound}{A numeric vector specifying the lower and upper bounds for the \code{theta} parameter. The default is \code{c(1e-2, 10)}.}
+
+\item{eta_bound}{A numeric value specifying the upper bound for the \code{eta} parameter. The default is 10.}
+
+\item{max_iter}{An integer specifying the maximum number of iterations for the EM algorithm. The default is 100.}
 }
 \value{
-A list containing optimized values for \code{pi}, \code{theta}, \code{eta}, \code{beta}, \code{mu}, and computed \code{p-values} for the model.
+A list containing the following elements:
+\describe{
+\item{pi}{A numeric vector of estimated zero-inflation probabilities for each feature.}
+\item{theta}{A numeric vector of estimated dispersion parameters for each feature.}
+\item{eta}{A numeric vector of sample-specific offsets.}
+\item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
+\item{mu}{A numeric matrix (n x m) of estimated mean values for the count data.}
+\item{pvalues}{A numeric vector of adjusted p-values for the significance of covariate effects.}
+}
 }
 \description{
-The \code{disaa} function is a wrapper function that implements the MZINB model for analyzing count data.
-It uses Expectation-Maximization (EM) algorithm to iteratively optimize the parameters. This function
-is ideal for count data, particularly with a high prevalence of zero counts.
+The \code{disaa} function implements the Multivariate Zero-Inflated Negative Binomial (MZINB) model for analyzing high-dimensional count data.
+It uses the Expectation-Maximization (EM) algorithm to iteratively optimize model parameters, allowing the analysis of datasets with a high prevalence of zero counts.
 }
-\examples{
-# Example usage:
-# Assuming `counts` is an n x m count matrix and `covariates` is an n x p covariate matrix
-# result <- disaa(counts, covariates)
+\details{
+The \code{disaa} function iteratively updates the model parameters using the Expectation-Maximization (EM) algorithm:
+\itemize{
+\item \strong{E-Step}: Computes the expected values of the latent variables based on current parameter estimates.
+\item \strong{M-Step}: Updates the model parameters to maximize the likelihood of the observed data.
+}
+The model is suitable for analyzing count data with covariates, such as those from microbiome or RNA-seq studies, which often have a high proportion of zero counts.
 }
