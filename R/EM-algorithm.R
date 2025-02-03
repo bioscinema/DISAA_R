@@ -56,10 +56,11 @@ e_step <- function(mu, tau, data, X, eta, beta, pi, theta, v) {
 #' It optimizes `theta` and `beta` using C++ for improved speed and performance.
 #'
 #' @import Rcpp
+#' @importFrom nloptr nloptr
 #' @importFrom stats optim
 #' @useDynLib DISAA
 #' @export
-update_parameters <- function(data, X, eta, beta, theta, pi, tau, v, lambda, beta_bound, theta_bound) {
+update_parameters <- function(data, X, eta, beta, theta, pi, tau, v, lambda, beta_bound, theta_bound,p) {
   for (j in seq_len(ncol(data))) {
     # Update pi
     pi[j] <- sum(tau[, j] * v[, j]) / nrow(data)
@@ -74,27 +75,21 @@ update_parameters <- function(data, X, eta, beta, theta, pi, tau, v, lambda, bet
       mu_j <- exp(eta + X %*% as.matrix(beta_j))
 
       # Calculate the negative log-likelihood
-      lambda / theta_j^2 - sum(
+      return(lambda / theta_j^2 - sum(
         (1 - tau[, j] * v[, j]) * theta_j * log(theta_j) -
           ((1 - tau[, j] * v[, j]) * theta_j + data[, j]) * log(mu_j + theta_j) +
           data[, j] * log(mu_j) +
           lgamma(data[, j] + theta_j) - lgamma(theta_j)
-      )
+      ))
     }
 
     # Use optim() for optimization
-    res <- optim(
-      par = par_j,
-      fn = lj,
-      method = "L-BFGS-B",
-      lower = c(theta_bound[1], rep(beta_bound[1], length(beta[j, ]))),
-      upper = c(theta_bound[2], rep(beta_bound[2], length(beta[j, ]))),
-      control = list(fnscale = -1)
-    )
+    res = nloptr(x0 = as.numeric(par_j), eval_f = lj, lb = c(theta_bound[1], rep(beta_bound[1], p)), ub = c(theta_bound[2], rep(beta_bound[2], p)),
+                 opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-6))
 
     # Update theta and beta
-    theta[j] <- res$par[1]
-    beta[j, ] <- res$par[-1]
+    theta[j] <- res$solution[1]
+    beta[j, ] <- res$solution[-1]
   }
 
   # Return the updated values

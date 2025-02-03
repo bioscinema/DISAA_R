@@ -26,7 +26,7 @@ arma::vec update_eta(const arma::mat& data, const arma::mat& X, const arma::mat&
         double term2 = data(i, j) * log(mu_i[j]);
         neg_log_likelihood += term1 + term2;
       }
-
+      Rcpp::Rcout << "Negative log-likelihood: " << neg_log_likelihood << std::endl;
       return -neg_log_likelihood;  // Return negative log-likelihood
     };
 

@@ -16,7 +16,8 @@ Imports:
     Rcpp,
     RcppArmadillo,
     MASS,
-    Matrix
+    Matrix,
+    nloptr
 SystemRequirements: nlopt
 Suggests: 
     testthat (>= 3.0.0)

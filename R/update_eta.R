@@ -15,8 +15,9 @@
 #'
 #' @return A numeric vector of updated `eta` values for each sample.
 #'
-#' @import Rcpp
+#' @importFrom Rcpp sourceCpp
 #' @import RcppArmadillo
+#' @importFrom nloptr nloptr
 #' @importFrom stats optim
 #' @useDynLib DISAA
 #'
@@ -37,18 +38,13 @@ update_eta <- function(params) {
   for (i in seq_len(n)) {
     li <- function(eta_i) {
       mu_i <- exp(eta_i + as.numeric(beta %*% as.matrix(X[i, ])))
-      -sum(-((1 - tau[i, ] * v[i, ]) * theta + data[i, ]) * log(mu_i + theta) + data[i, ] * log(mu_i))
+      return(-sum(-((1 - tau[i, ] * v[i, ]) * theta + data[i, ]) * log(mu_i + theta) + data[i, ] * log(mu_i)))
     }
 
-    res <- optim(
-      par = eta[i],
-      fn = li,
-      method = "L-BFGS-B",
-      lower = -10,
-      upper = eta_bound
-    )
+    res = nloptr(x0 = as.numeric(eta[i]), eval_f = li, lb = c(-10), ub = c(eta_bound),
+                 opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-6))
 
-    eta[i] <- res$par
+    eta[i] <- res$solution[1]
   }
 
   return(eta)

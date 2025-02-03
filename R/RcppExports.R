@@ -5,8 +5,12 @@ compute_pvalues <- function(data, beta, theta, mu, tau, v, lambda) {
     .Call(`_DISAA_compute_pvalues`, data, beta, theta, mu, tau, v, lambda)
 }
 
-update_eta <- function(data, X, beta, theta, tau, v, eta, eta_bound) {
-    .Call(`_DISAA_update_eta`, data, X, beta, theta, tau, v, eta, eta_bound)
+precompute_mu_tau <- function(data, X, beta, eta, theta) {
+    .Call(`_DISAA_precompute_mu_tau`, data, X, beta, eta, theta)
+}
+
+compute_likelihood <- function(eta_i, X_i, beta, tau_i, v_i, data_i, theta) {
+    .Call(`_DISAA_compute_likelihood`, eta_i, X_i, beta, tau_i, v_i, data_i, theta)
 }
 
 update_parameters <- function(data, X, eta, beta, theta, pi, tau, v, lambda, beta_bound, theta_bound) {

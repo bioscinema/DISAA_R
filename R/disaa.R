@@ -40,17 +40,20 @@ disaa <- function(counts, covariates, lambda = 0.5, beta_bound = c(-10, 10), the
     params$mu <- e_results$mu
     params$tau <- e_results$tau
 
-    m_results <- update_parameters(params$data, params$X, params$eta, params$beta, params$theta, params$pi, params$tau, params$v, params$lambda, params$beta_bound, params$theta_bound)
+    m_results <- update_parameters(params$data, params$X, params$eta, params$beta, params$theta, params$pi, params$tau, params$v, params$lambda, params$beta_bound, params$theta_bound, params$p)
     params$pi <- m_results$pi
     params$theta <- m_results$theta
     params$beta <- m_results$beta
-
+    
+    e_results_new <- e_step(params$mu, params$tau, params$data, params$X, params$eta, params$beta, params$pi, params$theta, params$v)
+    params$mu <- e_results_new$mu
+    params$tau <- e_results_new$tau
     params$eta <- update_eta(params)
   }
 
   params$mu <- compute_mu(params$data, params$X, params$eta, params$beta)
 
-  pvalues <- compute_pvalues(params$data, params$beta, params$theta, params$mu, params$tau, params$v, params$lambda)
+  pvalues <- compute_pvalues(params)
 
   return(list(pi = params$pi, theta = params$theta, eta = params$eta, beta = params$beta, mu = params$mu, pvalues = pvalues))
 }
