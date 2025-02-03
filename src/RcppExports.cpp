@@ -12,81 +12,19 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // compute_pvalues
-arma::vec compute_pvalues(const arma::mat& data, const arma::mat& beta, const arma::vec& theta, const arma::mat& mu, const arma::mat& tau, const arma::mat& v, double lambda);
-RcppExport SEXP _DISAA_compute_pvalues(SEXP dataSEXP, SEXP betaSEXP, SEXP thetaSEXP, SEXP muSEXP, SEXP tauSEXP, SEXP vSEXP, SEXP lambdaSEXP) {
+NumericVector compute_pvalues(List param);
+RcppExport SEXP _DISAA_compute_pvalues(SEXP paramSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type beta(betaSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type tau(tauSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type v(vSEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_pvalues(data, beta, theta, mu, tau, v, lambda));
-    return rcpp_result_gen;
-END_RCPP
-}
-// precompute_mu_tau
-List precompute_mu_tau(const arma::mat& data, const arma::mat& X, const arma::mat& beta, const arma::vec& eta, const arma::vec& theta);
-RcppExport SEXP _DISAA_precompute_mu_tau(SEXP dataSEXP, SEXP XSEXP, SEXP betaSEXP, SEXP etaSEXP, SEXP thetaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type beta(betaSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type eta(etaSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
-    rcpp_result_gen = Rcpp::wrap(precompute_mu_tau(data, X, beta, eta, theta));
-    return rcpp_result_gen;
-END_RCPP
-}
-// compute_likelihood
-double compute_likelihood(double eta_i, const arma::rowvec& X_i, const arma::mat& beta, const arma::rowvec& tau_i, const arma::rowvec& v_i, const arma::rowvec& data_i, const arma::vec& theta);
-RcppExport SEXP _DISAA_compute_likelihood(SEXP eta_iSEXP, SEXP X_iSEXP, SEXP betaSEXP, SEXP tau_iSEXP, SEXP v_iSEXP, SEXP data_iSEXP, SEXP thetaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type eta_i(eta_iSEXP);
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type X_i(X_iSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type beta(betaSEXP);
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type tau_i(tau_iSEXP);
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type v_i(v_iSEXP);
-    Rcpp::traits::input_parameter< const arma::rowvec& >::type data_i(data_iSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type theta(thetaSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_likelihood(eta_i, X_i, beta, tau_i, v_i, data_i, theta));
-    return rcpp_result_gen;
-END_RCPP
-}
-// update_parameters
-List update_parameters(const arma::mat& data, const arma::mat& X, arma::vec& eta, arma::mat& beta, arma::vec& theta, arma::vec& pi, const arma::mat& tau, const arma::mat& v, double lambda, const arma::vec& beta_bound, const arma::vec& theta_bound);
-RcppExport SEXP _DISAA_update_parameters(SEXP dataSEXP, SEXP XSEXP, SEXP etaSEXP, SEXP betaSEXP, SEXP thetaSEXP, SEXP piSEXP, SEXP tauSEXP, SEXP vSEXP, SEXP lambdaSEXP, SEXP beta_boundSEXP, SEXP theta_boundSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
-    Rcpp::traits::input_parameter< arma::vec& >::type eta(etaSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type beta(betaSEXP);
-    Rcpp::traits::input_parameter< arma::vec& >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< arma::vec& >::type pi(piSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type tau(tauSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type v(vSEXP);
-    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type beta_bound(beta_boundSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type theta_bound(theta_boundSEXP);
-    rcpp_result_gen = Rcpp::wrap(update_parameters(data, X, eta, beta, theta, pi, tau, v, lambda, beta_bound, theta_bound));
+    Rcpp::traits::input_parameter< List >::type param(paramSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_pvalues(param));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_DISAA_compute_pvalues", (DL_FUNC) &_DISAA_compute_pvalues, 7},
-    {"_DISAA_precompute_mu_tau", (DL_FUNC) &_DISAA_precompute_mu_tau, 5},
-    {"_DISAA_compute_likelihood", (DL_FUNC) &_DISAA_compute_likelihood, 7},
-    {"_DISAA_update_parameters", (DL_FUNC) &_DISAA_update_parameters, 11},
+    {"_DISAA_compute_pvalues", (DL_FUNC) &_DISAA_compute_pvalues, 1},
     {NULL, NULL, 0}
 };
 

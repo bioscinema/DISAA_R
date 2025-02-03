@@ -4,26 +4,29 @@
 \alias{compute_pvalues}
 \title{Compute P-Values for Beta Coefficients}
 \usage{
-compute_pvalues(data, beta, theta, mu, tau, v, lambda)
+compute_pvalues(param)
 }
 \arguments{
+\item{param}{A list containing the following elements:
+\describe{
 \item{data}{A numeric matrix (n x m) of observed count data.}
-
+\item{X}{A numeric matrix (n x p) representing the design matrix.}
 \item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
-
 \item{theta}{A numeric vector (length m) of dispersion parameters for each feature.}
-
 \item{mu}{A numeric matrix (n x m) of computed mean values for the count data.}
-
 \item{tau}{A numeric matrix (n x m) of posterior probabilities for zero inflation.}
-
 \item{v}{A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).}
-
-\item{lambda}{A regularization parameter for controlling model complexity.}
+\item{lambda}{A regularization parameter controlling model complexity.}
+\item{n}{The number of samples.}
+\item{m}{The number of features (e.g., genes).}
+\item{p}{The number of covariates.}
+}}
 }
 \value{
 A numeric vector of adjusted p-values for the \code{beta} coefficients.
 }
 \description{
 The \code{compute_pvalues} function computes the p-values for the \code{beta} coefficients using the Fisher Information Matrix.
+It extracts the necessary model components from a list of parameters and then constructs, inverts, and uses the Fisher
+Information Matrix to test the significance of the regression coefficients.
 }

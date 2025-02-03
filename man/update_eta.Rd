@@ -23,5 +23,7 @@ update_eta(params)
 A numeric vector of updated \code{eta} values for each sample.
 }
 \description{
-The \code{update_eta} function optimizes the sample-specific \code{eta} parameter using precomputations from C++ and NLopt for optimization.
+The \code{update_eta} function optimizes the sample-specific \code{eta} parameter using the
+\code{nloptr()} function from the \code{nloptr} package. This parameter represents the logarithm
+of the mean of non-zero counts, adjusted for covariates.
 }

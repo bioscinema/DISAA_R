@@ -15,40 +15,45 @@ update_parameters(
   v,
   lambda,
   beta_bound,
-  theta_bound
+  theta_bound,
+  p
 )
 }
 \arguments{
-\item{data}{A numeric matrix (n x m) of observed count data, where rows represent samples and columns represent features.}
+\item{data}{A numeric matrix of observed count data (n x m), where rows correspond to samples and columns to features.}
 
-\item{X}{A numeric matrix (n x p) of covariates for the samples.}
+\item{X}{A numeric matrix (n x p) of covariates.}
 
-\item{eta}{A numeric vector (n) of sample-specific offsets.}
+\item{eta}{A numeric vector of length \code{n} representing sample-specific offsets.}
 
-\item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
+\item{beta}{A numeric matrix (m x p) of regression coefficients.}
 
-\item{theta}{A numeric vector (m) of dispersion parameters for each feature.}
+\item{theta}{A numeric vector of length \code{m} representing dispersion parameters.}
 
-\item{pi}{A numeric vector (m) of zero-inflation probabilities for each feature.}
+\item{pi}{A numeric vector of length \code{m} containing the current zero-inflation probabilities.}
 
 \item{tau}{A numeric matrix (n x m) of posterior probabilities for zero inflation.}
 
 \item{v}{A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).}
 
-\item{lambda}{A regularization parameter for controlling model complexity.}
+\item{lambda}{A numeric regularization parameter controlling model complexity.}
 
-\item{beta_bound}{A numeric vector specifying the bounds for the \code{beta} parameter.}
+\item{beta_bound}{A numeric vector of length 2 specifying the lower and upper bounds for the \code{beta} parameters.}
 
-\item{theta_bound}{A numeric vector specifying the bounds for the \code{theta} parameter.}
+\item{theta_bound}{A numeric vector of length 2 specifying the lower and upper bounds for \code{theta}.}
+
+\item{p}{An integer representing the number of covariates.}
 }
 \value{
 A list containing updated values for \code{pi}, \code{theta}, and \code{beta}.
 }
 \description{
-This function updates the \code{pi}, \code{theta}, and \code{beta} parameters during the Maximization (M) step of the EM algorithm.
-It uses Rcpp for improved performance and efficiency.
+This function updates the zero-inflation probabilities (\code{pi}), dispersion parameters (\code{theta}),
+and regression coefficients (\code{beta}) during the Maximization (M) step of the EM algorithm for the
+Multivariate Zero-Inflated Negative Binomial (MZINB) model. It leverages Rcpp for improved performance.
 }
 \details{
-This function is part of the M-step of the EM algorithm for the Multivariate Zero-Inflated Negative Binomial (MZINB) model.
-It optimizes \code{theta} and \code{beta} using C++ for improved speed and performance.
+This function is part of the M-step of the EM algorithm for the MZINB model. It optimizes the negative log-likelihood
+function for each feature (gene) using NLopt (via the \code{nloptr} package) to update the parameters.
+This version is implemented in R but is intended to be used in conjunction with Rcpp-generated code for improved efficiency.
 }

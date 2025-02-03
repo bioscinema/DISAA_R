@@ -1,6 +1,8 @@
 #' Compute P-Values for Beta Coefficients
 #'
 #' The `compute_pvalues` function computes the p-values for the `beta` coefficients using the Fisher Information Matrix.
+#' It extracts the necessary model components from a list of parameters and then constructs, inverts, and uses the Fisher
+#' Information Matrix to test the significance of the regression coefficients.
 #'
 #' @import Rcpp
 #' @import RcppArmadillo
@@ -8,13 +10,20 @@
 #' @import Matrix
 #' @useDynLib DISAA, .registration = TRUE
 #'
-#' @param data A numeric matrix (n x m) of observed count data.
-#' @param beta A numeric matrix (m x p) of covariate effects for each feature.
-#' @param theta A numeric vector (length m) of dispersion parameters for each feature.
-#' @param mu A numeric matrix (n x m) of computed mean values for the count data.
-#' @param tau A numeric matrix (n x m) of posterior probabilities for zero inflation.
-#' @param v A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).
-#' @param lambda A regularization parameter for controlling model complexity.
+#' @param param A list containing the following elements:
+#' \describe{
+#'   \item{data}{A numeric matrix (n x m) of observed count data.}
+#'   \item{X}{A numeric matrix (n x p) representing the design matrix.}
+#'   \item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
+#'   \item{theta}{A numeric vector (length m) of dispersion parameters for each feature.}
+#'   \item{mu}{A numeric matrix (n x m) of computed mean values for the count data.}
+#'   \item{tau}{A numeric matrix (n x m) of posterior probabilities for zero inflation.}
+#'   \item{v}{A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).}
+#'   \item{lambda}{A regularization parameter controlling model complexity.}
+#'   \item{n}{The number of samples.}
+#'   \item{m}{The number of features (e.g., genes).}
+#'   \item{p}{The number of covariates.}
+#' }
 #'
 #' @return A numeric vector of adjusted p-values for the `beta` coefficients.
 #'
