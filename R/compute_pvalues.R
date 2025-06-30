@@ -1,178 +1,134 @@
-#' Compute P-Values for Beta Coefficients
+#' Compute Wald Test p-values for Each Covariate Across Taxa
 #'
-#' The `compute_pvalues` function computes the p-values for the `beta` coefficients using the Fisher Information Matrix.
-#' It extracts the necessary model components from a list of parameters and then constructs, inverts, and uses the Fisher
-#' Information Matrix to test the significance of the regression coefficients.
+#' This function constructs and inverts the observed Fisher information matrix
+#' for a log-normal model and computes Wald test p-values for each covariate
+#' (excluding intercept and optionally a zero-adjust term) across all taxa.
 #'
-#' @import Rcpp
-#' @import RcppArmadillo
-#' @import MASS
-#' @import Matrix
-#' @useDynLib DISAA, .registration = TRUE
+#' @param data A numeric matrix of count data (samples × taxa).
+#' @param X A numeric design matrix for the covariates (samples × covariates).
+#' @param mu A numeric matrix of expected means (same shape as `data`).
+#' @param tau A numeric matrix of zero-inflation probabilities (samples × taxa).
+#' @param v A numeric matrix of indicator variables for zero-inflation (samples × taxa).
+#' @param theta A numeric vector of dispersion parameters for each taxon.
+#' @param beta A numeric matrix of regression coefficients (taxa × covariates).
+#' @param lambda A numeric value controlling the regularization strength on `theta`.
+#' @param zero_adj A logical or numeric indicator specifying whether a zero-adjustment variable is present in `X`.
 #'
-#' @param param A list containing the following elements:
+#' @return A list with the following elements:
 #' \describe{
-#'   \item{data}{A numeric matrix (n x m) of observed count data.}
-#'   \item{X}{A numeric matrix (n x p) representing the design matrix.}
-#'   \item{beta}{A numeric matrix (m x p) of covariate effects for each feature.}
-#'   \item{theta}{A numeric vector (length m) of dispersion parameters for each feature.}
-#'   \item{mu}{A numeric matrix (n x m) of computed mean values for the count data.}
-#'   \item{tau}{A numeric matrix (n x m) of posterior probabilities for zero inflation.}
-#'   \item{v}{A binary matrix (n x m) indicating zero counts (1 if zero, 0 otherwise).}
-#'   \item{lambda}{A regularization parameter controlling model complexity.}
-#'   \item{n}{The number of samples.}
-#'   \item{m}{The number of features (e.g., genes).}
-#'   \item{p}{The number of covariates.}
+#'   \item{I}{The full observed Fisher information matrix.}
+#'   \item{cov}{The inverse of the Fisher information matrix (covariance matrix).}
+#'   \item{pvalues_all}{A matrix of adjusted p-values for each covariate across all taxa.}
 #' }
 #'
-#' @return A numeric vector of adjusted p-values for the `beta` coefficients.
+#' @details
+#' The function computes second derivatives (Hessian blocks) for `theta`, `eta`, and `beta`,
+#' as well as cross-derivatives among them to build the full information matrix.
+#' Wald statistics are calculated using the squared ratio of estimated beta coefficients
+#' to their variances, and p-values are adjusted using the Benjamini-Hochberg method.
 #'
-#' @export
-compute_pvalues <- function(param) {
-  # Extract elements from param list
-  data   <- param$data      # n x m count matrix
-  X      <- param$X         # n x p design matrix
-  beta   <- param$beta      # m x p coefficient matrix
-  theta  <- param$theta     # vector of length m (per-feature dispersion)
-  mu     <- param$mu        # n x m fitted means
-  tau    <- param$tau       # n x m weight matrix
-  v      <- param$v         # n x m indicator matrix for zeros
-  lambda <- param$lambda    # penalty parameter
+#' @importFrom Matrix bdiag
+#' @importFrom MASS ginv
+#' @importFrom stats pchisq p.adjust
+#'
+#' @keywords internal
+#' @noRd
+compute_single_var_pvalues = function(data, X, mu, tau, v, theta, beta, lambda, zero_adj){
   
-  # Dimensions
-  n <- param$n
-  m <- param$m
-  p <- param$p
+  n = nrow(data)
+  m = ncol(data)
+  p = ncol(X)
   
-  #### Initialize Fisher Information components ####
-  # For feature-level parameter theta (length m) and sample-level parameter eta (length n)
-  I_theta <- numeric(m)       # will become an m x m diagonal block
-  I_eta   <- numeric(n)       # will become an n x n diagonal block
+  I_theta = numeric(m)
+  I_eta = numeric(n)
+  I_theta_eta = matrix(0, m, n)
+  I_beta = new("dgCMatrix", Dim = as.integer(c(0, 0)))  
+  I_theta_beta = matrix(0, m, m * p)
+  I_eta_beta = matrix(0, n, m * p)
   
-  # Cross-terms between theta and eta (m x n)
-  I_theta_eta <- matrix(0, nrow = m, ncol = n)
-  
-  # For beta (regression coefficients): we will build a list of m blocks (each p x p)
-  I_beta_list <- vector("list", m)
-  
-  # Cross-terms between theta and beta (m x (m*p))
-  I_theta_beta <- matrix(0, nrow = m, ncol = m * p)
-  
-  # Cross-terms between eta and beta (n x (m*p))
-  I_eta_beta <- matrix(0, nrow = n, ncol = m * p)
-  
-  #### Compute I_eta (information for eta) for each sample i ####
-  for (i in 1:n) {
-    new_I_eta <- 0
-    for (j in 1:m) {
-      new_I_eta <- new_I_eta +
-        ((data[i, j] + (1 - tau[i, j] * v[i, j]) * theta[j]) *
-           mu[i, j] * theta[j] / (mu[i, j] + theta[j])^2)
+  for(i in 1:n){
+    new_I_eta = 0
+    for(j in 1:m){
+      temp = (data[i, j] + (1 - tau[i, j] * v[i, j]) * theta[j])
+      new_I_eta = new_I_eta + (temp * mu[i, j] * theta[j]) / (mu[i, j] + theta[j])^2
     }
-    I_eta[i] <- new_I_eta
+    I_eta[i] = new_I_eta
   }
   
-  #### Compute feature-level Fisher Information for each gene j ####
-  for (j in 1:m) {
-    new_I_theta    <- 0
-    new_I_beta     <- matrix(0, nrow = p, ncol = p)
-    new_I_theta_beta <- matrix(0, nrow = p, ncol = 1)
+  for(j in 1:m){
+    new_I_theta = 0
+    new_I_beta = matrix(0, p, p)
+    new_I_theta_beta = numeric(p)
     
-    for (i in 1:n) {
-      # Information for theta (gene j): note the addition of the trigamma terms
-      new_I_theta <- new_I_theta +
-        ((data[i, j] * theta[j] + (1 - tau[i, j] * v[i, j]) * mu[i, j]^2) /
-           (theta[j] * (mu[i, j] + theta[j])^2)) +
-        (trigamma(data[i, j] + theta[j]) - trigamma(theta[j]))
+    for(i in 1:n){
+      mu_ij = mu[i, j]
+      data_ij = data[i, j]
+      tau_ij = tau[i, j]
+      v_ij = v[i, j]
+      X_i = X[i, ]
       
-      # Information for beta (gene j): use the covariate row X[i, ]
-      new_I_beta <- new_I_beta +
-        ((data[i, j] + (1 - tau[i, j] * v[i, j]) * theta[j]) *
-           mu[i, j] * theta[j] / (mu[i, j] + theta[j])^2) *
-        (X[i, ] %*% t(X[i, ]))
+      denom = (mu_ij + theta[j])^2
+      common_term = data_ij + (1 - tau_ij * v_ij) * theta[j]
       
-      # Cross-term between theta and beta for gene j
-      new_I_theta_beta <- new_I_theta_beta +
-        (((1 - tau[i, j] * v[i, j]) * mu[i, j] - data[i, j]) *
-           mu[i, j] / (mu[i, j] + theta[j])^2) *
-        X[i, ]
+      ### Diagonal Hessian block for theta
+      new_I_theta = new_I_theta -
+        (data_ij * theta[j] + (1 - tau_ij * v_ij) * mu_ij^2) / (theta[j] * denom) +
+        trigamma(data_ij + theta[j]) - trigamma(theta[j])
       
-      # For each sample i, store the cross-term between eta and beta in the block for gene j.
-      I_eta_beta[i, ((j - 1) * p + 1):(j * p)] <-
-        ((data[i, j] + (1 - tau[i, j] * v[i, j]) * theta[j]) *
-           mu[i, j] * theta[j] / (mu[i, j] + theta[j])^2) * X[i, ]
+      ### Hessian block for beta
+      weight = (common_term * mu_ij * theta[j]) / denom
+      new_I_beta = new_I_beta + weight * (X_i %*% t(X_i))
       
-      # Also fill in the (j,i) element for the cross-term between theta and eta
-      I_theta_eta[j, i] <- ((1 - tau[i, j] * v[i, j]) * mu[i, j] - data[i, j]) *
-        mu[i, j] / (mu[i, j] + theta[j])^2
+      ### Cross derivative between theta and beta
+      cross_term = ((1 - tau_ij * v_ij) * mu_ij - data_ij) * mu_ij / denom
+      new_I_theta_beta = new_I_theta_beta + cross_term * X_i
+      
+      ### Cross derivative between eta and beta
+      I_eta_beta[i, ((j - 1) * p + 1):(j * p)] = weight * X_i
+      
+      ### Cross derivative between theta and eta
+      I_theta_eta[j, i] = cross_term
     }
-    # Adjust theta information with the penalty term
-    I_theta[j] <- new_I_theta - 6 * lambda / theta[j]^4
-    # Save the beta information for gene j in the list
-    I_beta_list[[j]] <- new_I_beta
-    # Place the cross-term between theta and beta into the proper columns for gene j
-    I_theta_beta[j, ((j - 1) * p + 1):(j * p)] <- as.vector(new_I_theta_beta)
+    
+    I_theta[j] = new_I_theta + 6 * lambda / theta[j]^4
+    I_beta = as.matrix(bdiag(I_beta, new_I_beta))
+    I_theta_beta[j, ((j - 1) * p + 1):(j * p)] = new_I_theta_beta
   }
   
-  #### Assemble full Fisher Information matrix ####
-  # Convert I_theta and I_eta into diagonal matrices.
-  I_theta_mat <- diag(I_theta, nrow = m, ncol = m)
-  I_eta_mat   <- diag(I_eta, nrow = n, ncol = n)
-  # Combine the list of I_beta blocks into a block-diagonal matrix.
-  I_beta_mat <- as.matrix(Matrix::bdiag(I_beta_list))
+  ### Convert I_theta and I_eta to diagonal matrices
+  I_theta = diag(I_theta)
+  I_eta = diag(I_eta)
   
-  # Order the parameters as: first θ (length m), then η (length n), then β (length m*p).
-  # Assemble the full Fisher information matrix accordingly.
-  I_full <- rbind(
-    cbind(I_theta_mat, I_theta_eta, I_theta_beta),
-    cbind(t(I_theta_eta), I_eta_mat, I_eta_beta),
-    cbind(t(I_theta_beta), t(I_eta_beta), I_beta_mat)
+  ### Combine all into full observed information matrix
+  I = rbind(
+    cbind(I_theta, I_theta_eta, I_theta_beta),
+    cbind(t(I_theta_eta), I_eta, I_eta_beta),
+    cbind(t(I_theta_beta), t(I_eta_beta), I_beta)
   )
   
-  # Invert the full Fisher information matrix to get the covariance matrix.
-  cov_matrix <- MASS::ginv(I_full)
+  ### Extract beta-related submatrix
+  cov = ginv(I)
+  cov_beta = cov[(nrow(cov) - m * p + 1):nrow(cov), (nrow(cov) - m * p + 1):nrow(cov)]
   
-  # Extract the covariance block corresponding to β.
-  # The β parameters occupy the last m*p rows and columns.
-  cov_beta <- cov_matrix[(m + n + 1):(m + n + m * p), (m + n + 1):(m + n + m * p)]
+  ### Initialize p-value matrix
+  adjusted_start = 2 + as.numeric(zero_adj)
+  pvalue_cols = p - 1 - as.numeric(zero_adj)
+  pvalues_all = matrix(0, m, pvalue_cols)
   
-  #### Compute p-values for each gene ####
-  # For each gene j, test the null hypothesis H0: beta[j,2] == 0.
-  # The index for the second coefficient in the j-th block is (j - 1)*p + 2.
-  pvalues <- numeric(m)
-  for (j in 1:m) {
-    index <- (j - 1) * p + 2  # index in the block for gene j
-    test_stat <- (beta[j, 2]^2) / cov_beta[index, index]
-    pvalues[j] <- 1 - stats::pchisq(test_stat, df = 1)
+  ### Compute p-values for each covariate (excluding intercept and zero-adjust column if applicable)
+  for(var in adjusted_start:p){
+    var_idx = var - 1 - as.numeric(zero_adj)
+    
+    ### Vectorized computation of p-values for all taxa
+    beta_vec = beta[, var]
+    cov_diag = sapply(1:m, function(j) cov_beta[p * (j - 1) + var, p * (j - 1) + var])
+    
+    chi_sq = beta_vec^2 / cov_diag
+    raw_pvals = 1 - pchisq(chi_sq, df = 1)
+    
+    ### Adjust for multiple testing
+    pvalues_all[, var_idx] = stats::p.adjust(raw_pvals, method = "BH")
   }
-  # Adjust the p-values for multiple testing (using the Benjamini–Hochberg method)
-  pvalues <- stats::p.adjust(pvalues, method = "BH")
   
-  return(pvalues)
+  return(list(I = I, cov = cov, pvalues_all = pvalues_all))
 }
-
-
-
-#' Compute Mu for MZINB Model
-#'
-#' This function computes the `mu` matrix based on the current values of `eta` and `beta`.
-#'
-#' @param data The count data matrix.
-#' @param X The covariates matrix.
-#' @param eta The `eta` vector.
-#' @param beta The `beta` matrix.
-#' @return The computed `mu` matrix.
-compute_mu <- function(data, X, eta, beta) {
-  n <- nrow(data)
-  m <- ncol(data)
-  mu <- matrix(0, n, m)
-
-  for (i in seq_len(n)) {
-    for (j in seq_len(m)) {
-      mu[i, j] <- exp(eta[i] + sum(X[i, ] * beta[j, ]))
-    }
-  }
-
-  return(mu)
-}
-
