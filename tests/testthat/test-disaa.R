@@ -1,41 +1,74 @@
 # tests/testthat/test-disaa.R
+test_that("disaa() runs and returns expected structure on simulated data", {
+  skip_if_not_installed("MASS")
+  skip_if_not_installed("nloptr")
+  skip_if_not_installed("phyloseq")
+  skip_if_not_installed("fastDummies")
 
-test_that("disaa function works correctly", {
-  set.seed(123)  # Ensure reproducibility
+  set.seed(123)
 
-  # Simulate data
-  N <- 100  # Number of samples
-  M <- 200  # Number of genes
+  # ---- simulate counts (samples x taxa) ----
+  N <- 30      # samples
+  M <- 60      # taxa
+  grp <- rbinom(N, 1, 0.5)
+  meta <- data.frame(grp = grp)
+  rownames(meta) <- paste0("S", seq_len(N))
 
-  pi <- 0.5
-  theta <- 1
-  pi_real <- rep(pi, M)
-  theta_real <- rep(theta, M)
+  # true params (intercept + grp)
+  p <- 2
+  eta_true  <- runif(N, -1.0, 1.0)
+  beta_true <- cbind(
+    rnorm(M, 0, 0.2),                       # intercept
+    rbinom(M, 1, 0.3) * rnorm(M, 1.0, 0.3)  # some signal on grp
+  )
+  MU <- exp(outer(eta_true, rep(1, M)) + as.matrix(cbind(1, grp)) %*% t(beta_true))
+  theta_true <- rep(1, M)
 
-  # Generate eta
-  eta_real <- runif(N, min = -3, max = 3)
+  counts <- matrix(rnbinom(N * M, mu = MU, size = theta_true), nrow = N, ncol = M)
+  # zero inflation
+  pi_true <- 0.4
+  counts[matrix(runif(N * M) < pi_true, nrow = N)] <- 0
 
-  # Generate beta, 30% significant
-  beta_real <- matrix(rbinom(M * 2, 2, 0.3), nrow = M, ncol = 2)
+  rownames(counts) <- rownames(meta)
+  colnames(counts) <- paste0("T", seq_len(M))
 
-  # Generate X (covariates)
-  X <- cbind(rep(1, N), rbinom(N, 1, 0.5))
+  # ---- build phyloseq object (samples in rows, taxa in cols) ----
+  phy <- phyloseq::phyloseq(
+    phyloseq::otu_table(counts, taxa_are_rows = FALSE),
+    phyloseq::sample_data(meta)
+  )
 
-  # Generate zero-inflated negative binomial counts
-  mu <- exp(outer(eta_real, rep(1, M)) + X %*% t(beta_real))
-  counts <- matrix(rnbinom(N * M, mu = mu, size = theta_real), nrow = N, ncol = M)
-  zero_mask <- matrix(runif(N * M) <= pi, nrow = N, ncol = M)
-  counts[zero_mask] <- 0
+  # ---- run disaa() with phyloseq_obj ----
+  out <- disaa(
+    phyloseq_obj   = phy,
+    formula        = ~ grp,
+    conf           = 0.95,
+    lambda_beta    = 0.05,
+    zero_adj       = FALSE,
+    outlier_replace= FALSE,
+    beta_bound     = c(-10, 10),
+    theta_bound    = c(1e-2, 10),
+    eta_bound      = c(-10, 10),
+    max_iter       = 3,        # keep small for CI speed
+    tol            = 1e-4,
+    seed           = 42
+  )
 
-  # Run the disaa function
-  out <- disaa(counts, X, max_iter = 30)
-
-  # Validate the output
+  # ---- structure checks ----
   expect_type(out, "list")
-  expect_true(all(c("pi", "theta", "eta", "beta", "mu", "pvalues") %in% names(out)))
-  expect_equal(length(out$pi), M)
-  expect_equal(length(out$theta), M)
-  expect_equal(length(out$eta), N)
-  expect_equal(dim(out$beta), c(M, ncol(X)))
-  expect_equal(dim(out$mu), dim(counts))
+  expect_true(all(c("aux","res") %in% names(out)))
+
+  res <- out$res
+  expect_true(all(c("pi","theta","eta","beta","mu","pvalues","significant") %in% names(res)))
+
+  expect_equal(length(res$pi),    M)
+  expect_equal(length(res$theta), M)
+  expect_equal(length(res$eta),   N)
+  expect_equal(dim(res$beta),     c(M, 2))   # intercept + grp
+  expect_equal(dim(res$mu),       c(N, M))
+
+  # p-values matrix: taxa x contrasts
+  expect_true(is.matrix(res$pvalues))
+  expect_equal(nrow(res$pvalues), M)
+  expect_equal(nrow(res$significant), M)
 })
