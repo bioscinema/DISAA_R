@@ -31,6 +31,10 @@
 #' @param phyloseq_obj A \code{phyloseq} object containing an OTU table and sample metadata.
 #'   If provided, \code{counts} and \code{covariates} are extracted from it (taxa are assumed
 #'   to be columns/samples are rows; rows are transposed if needed).
+#' @param counts Optional numeric matrix of raw counts with dimensions
+#'   \emph{samples} \eqn{\times} \emph{taxa}. Required when \code{phyloseq_obj} is \code{NULL}.
+#' @param covariates Optional data frame of sample-level covariates referenced in \code{formula}.
+#'   Required when \code{phyloseq_obj} is \code{NULL}.
 #' @param formula Right-hand-sided formula specifying covariates of interest (e.g., \code{~ Group + Age}).
 #' @param conf Confidence level used to determine significance (default \code{0.95}).
 #' @param lambda_beta Nonnegative regularization strength applied to \eqn{\beta} blocks
@@ -80,12 +84,12 @@
 #' @importFrom fastDummies dummy_cols
 #'
 #' @export
-disaa = function(phyloseq_obj, formula, conf = 0.95,
+disaa = function(phyloseq_obj, counts, covariates,formula, conf = 0.95,
                  lambda_beta = 0.05, zero_adj = FALSE, outlier_replace = FALSE, outlier_conf = 0.99,
                  beta_bound = c(-10, 10), theta_bound = c(1e-2, 10), eta_bound = c(-10, 10), max_iter=50, tol = 1e-6,seed=42){
   set.seed(seed)
   ### Check all the inputs are correct
-  check_DISSA_inputs(phyloseq_obj, formula,
+  check_DISSA_inputs(phyloseq_obj, counts, covariates, formula,
                      conf, lambda_beta, zero_adj, outlier_replace, outlier_conf,
                      beta_bound, theta_bound, eta_bound, max_iter, tol)
 

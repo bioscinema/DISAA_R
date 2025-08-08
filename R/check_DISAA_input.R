@@ -6,6 +6,10 @@
 #'
 #' @param phyloseq_obj A phyloseq object containing counts and sample data.
 #'   If `NULL`, both `counts` and `covariates` must be provided.
+#' @param counts Optional numeric matrix of raw counts with dimensions
+#'   \emph{samples} \eqn{\times} \emph{taxa}. Required when \code{phyloseq_obj} is \code{NULL}.
+#' @param covariates Optional data frame of sample-level covariates referenced in \code{formula}.
+#'   Required when \code{phyloseq_obj} is \code{NULL}.
 #' @param formula A model formula (e.g. `~ group + age`).
 #' @param conf Numeric scalar in (0,1), confidence level for interval estimation.
 #' @param lambda_beta Non-negative numeric scalar, penalty for regression betas.
@@ -22,13 +26,19 @@
 #'   throws an error describing the violation.
 #'
 #' @noRd
-check_DISSA_inputs = function(phyloseq_obj, formula,
+check_DISSA_inputs = function(phyloseq_obj, counts, covariates, formula,
                               conf, lambda_beta, zero_adj, outlier_replace, outlier_conf,
                               beta_bound, theta_bound, eta_bound, max_iter, tol){
 
   # Check input source: phyloseq_obj OR (counts AND covariates) must be provided
   if(is.null(phyloseq_obj)){
+    if(missing(counts) || missing(covariates)){
       stop("User should provide either a 'phyloseq_obj', or both 'counts' and 'covariates'.")
+    }
+    # Check that counts and covariates have matching sample size
+    if(nrow(counts) != nrow(covariates)){
+      stop("'counts' and 'covariates' must have the same number of rows (samples).")
+    }
   }
 
   # Check formula is provided and correctly formatted

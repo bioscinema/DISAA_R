@@ -6,6 +6,8 @@
 \usage{
 disaa(
   phyloseq_obj,
+  counts,
+  covariates,
   formula,
   conf = 0.95,
   lambda_beta = 0.05,
@@ -24,6 +26,12 @@ disaa(
 \item{phyloseq_obj}{A \code{phyloseq} object containing an OTU table and sample metadata.
 If provided, \code{counts} and \code{covariates} are extracted from it (taxa are assumed
 to be columns/samples are rows; rows are transposed if needed).}
+
+\item{counts}{Optional numeric matrix of raw counts with dimensions
+\emph{samples} \eqn{\times} \emph{taxa}. Required when \code{phyloseq_obj} is \code{NULL}.}
+
+\item{covariates}{Optional data frame of sample-level covariates referenced in \code{formula}.
+Required when \code{phyloseq_obj} is \code{NULL}.}
 
 \item{formula}{Right-hand-sided formula specifying covariates of interest (e.g., \code{~ Group + Age}).}
 
