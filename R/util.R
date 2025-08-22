@@ -81,9 +81,6 @@ compute_pvalues_contrast = function(DISSA_obj, contrast = c("varname", "value1",
 #' @noRd
 pvalues_adjust = function(pvals, conf = 0.95, alpha = 0.1) {
 
-  conf = 0.95
-  alpha = 0.1
-
   padj = pvals
   keep = rep(TRUE, length(pvals))
   index = 1:length(pvals)
